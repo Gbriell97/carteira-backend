@@ -6,18 +6,14 @@ const { initDB } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ── Middlewares ──────────────────────────────────────────
+// ── CORS ─────────────────────────────────────────────────
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL,
-    'http://localhost:3000',
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
-    'https://*.github.io',
-    '*'
-  ],
-  credentials: true
+  origin: '*',
+  methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization'],
+  credentials: false
 }));
+app.options('*', cors());
 app.use(express.json());
 
 // ── Rotas ────────────────────────────────────────────────
@@ -42,30 +38,18 @@ app.use((req, res) => {
   res.status(404).json({ error: `Rota ${req.method} ${req.path} não encontrada.` });
 });
 
-// ── Inicializar banco ────────────────────────────────────
-// No Vercel cada request é serverless, então iniciamos o banco uma vez
-let dbInitialized = false;
-async function ensureDB() {
-  if (!dbInitialized) {
+// ── Iniciar servidor ─────────────────────────────────────
+async function start() {
+  try {
     await initDB();
-    dbInitialized = true;
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  } catch (err) {
+    console.error('Erro ao iniciar:', err.message);
+    process.exit(1);
   }
 }
 
-// ── Para rodar localmente ────────────────────────────────
-if (process.env.NODE_ENV !== 'production') {
-  ensureDB().then(() => {
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-      console.log(`📦 Banco de dados conectado`);
-    });
-  }).catch(err => {
-    console.error('❌ Erro ao iniciar:', err.message);
-    process.exit(1);
-  });
-}
-
-// ── Exporta para o Vercel ────────────────────────────────
-ensureDB().catch(console.error);
+start();
 module.exports = app;
-
